@@ -16,7 +16,14 @@ def odds_ratio(X, Y, Z, data):
     """
 
     # Implement your code here:
-    OR = 0
+    formula = Y + ' ~ ' + X
+
+    for i in range(len(Z)):
+        formula += '+'
+        formula += Z[i]
+        
+    model = sm.GLM.from_formula(formula=formula, data=data, family=sm.families.Binomial()).fit()
+    OR = np.exp(model.params[X])
     return OR
 
 def compute_confidence_intervals(X, Y, Z, data, num_bootstraps=200, alpha=0.05):
@@ -28,14 +35,17 @@ def compute_confidence_intervals(X, Y, Z, data, num_bootstraps=200, alpha=0.05):
     
     Ql = alpha/2
     Qu = 1 - alpha/2
-    estimates = []
+    estimates = []  
     
     for i in range(num_bootstraps):
        
         # Implement your code here:
-        pass
-
-    q_low, q_up = -1, 1    
+        val = odds_ratio(X, Y, Z, data.sample(replace=True))
+        estimates.append(val)
+    
+        
+    estimate = pd.Series(estimates)
+    q_low, q_up = estimate.quantile(Ql), estimate.quantile(Qu)    
     return q_low, q_up
 
 
