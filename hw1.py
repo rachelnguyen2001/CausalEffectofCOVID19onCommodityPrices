@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 from scipy.special import expit
 
-
 def odds_ratio(X, Y, Z, data):
     """
     Compute the odds ratio OR(X, Y | Z).
@@ -15,15 +14,20 @@ def odds_ratio(X, Y, Z, data):
     Return float OR for the odds ratio OR(X, Y | Z)
     """
 
-    # Implement your code here:
+    # Formula for the model
     formula = Y + ' ~ ' + X
 
+    # Adding variables to the formula
     for i in range(len(Z)):
         formula += '+'
         formula += Z[i]
-        
+
+    # The model
     model = sm.GLM.from_formula(formula=formula, data=data, family=sm.families.Binomial()).fit()
+
+    # Odds ratio is the exponent of the coefficient of X
     OR = np.exp(model.params[X])
+    
     return OR
 
 def compute_confidence_intervals(X, Y, Z, data, num_bootstraps=200, alpha=0.05):
@@ -36,18 +40,19 @@ def compute_confidence_intervals(X, Y, Z, data, num_bootstraps=200, alpha=0.05):
     Ql = alpha/2
     Qu = 1 - alpha/2
     estimates = []  
-    
-    for i in range(num_bootstraps):
-       
-        # Implement your code here:
-        val = odds_ratio(X, Y, Z, data.sample(replace=True))
-        estimates.append(val)
-    
-        
-    estimate = pd.Series(estimates)
-    q_low, q_up = estimate.quantile(Ql), estimate.quantile(Qu)    
-    return q_low, q_up
 
+    # Generate datasets by resampling with replacement and calculate theta values
+    for i in range(num_bootstraps):
+        theta = odds_ratio(X, Y, Z, data.sample(n = data.shape[0], replace=True))
+        estimates.append(theta)    
+
+    # Construct a Series
+    series = pd.Series(estimates)
+
+    # Get values at the Ql and Qu quantiles
+    q_low, q_up = series.quantile(Ql), series.quantile(Qu)    
+
+    return q_low, q_up
 
 def main():
     """
