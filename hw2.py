@@ -78,7 +78,7 @@ def compute_confidence_intervals(Y, A, Z, data, num_bootstraps=200, alpha=0.05):
     # Construct a Series
     series = pd.Series(estimates)
 
-    # Get values at the Q1 and Qu quantiles
+    # Get values at the Ql and Qu quantiles
     q_low, q_up = series.quantile(Ql), series.quantile(Qu)
 
     return q_low, q_up
