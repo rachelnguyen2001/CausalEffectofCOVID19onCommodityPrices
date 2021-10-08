@@ -50,8 +50,7 @@ def backdoor_adjustment(Y, A, Z, data):
 
     # Compute the mean difference in predicted potential outcomes
     for i in range(n):
-        ACE += D_a_predict.iloc[i]
-        ACE -= D_a_prime_predict.iloc[i]
+        ACE += (D_a_predict.iloc[i] - D_a_prime_predict.iloc[i])
 
     ACE /= n
     
