@@ -21,38 +21,41 @@ def backdoor_adjustment(Y, A, Z, data):
     ACE: float corresponding to the causal effect
     """
 
+    # Formula for the model
     formula = Y + ' ~ ' + A
 
+    # Adding variables to the formula
     for i in range(len(Z)):
         formula += ' + '
         formula += Z[i]
-        
+
+    # The model
     model = smf.ols(formula=formula, data=data).fit()
 
+    # Create two copies of the data
     D_a = data.copy(deep=True)
     D_a_prime = data.copy(deep=True)
+
+    # Set A = 1 for all data points in D_a and A = 0 for all data points in D_a_prime
     D_a[A].replace({0: 1}, inplace=True)
     D_a_prime[A].replace({1:0}, inplace=True)
     
     ACE = 0.0
-    n = data.shape[0]
-    # print(n)
-    
-    # print(model.predict(D_a)[15])
-    p_1 = model.predict(D_a)
-    p_2 = model.predict(D_a_prime)
 
-    # print(p_1)
-    # print(p_2)
+    # Number of samples
+    n = data.shape[0]
     
+    # Prediction for Y in D_a and D_a_prime
+    D_a_predict = model.predict(D_a)
+    D_a_prime_predict = model.predict(D_a_prime)
+
+    # Compute the mean difference in predicted potential outcomes
     for i in range(n):
-        # print(model.predict(D_a.iloc[i]))
-        ACE += p_1.iloc[i]
-        ACE -= p_2.iloc[i]
-        # print(ACE)
-        # ACE -= model.predict(D_a_prime.iloc[i])
+        ACE += D_a_predict.iloc[i]
+        ACE -= D_a_prime_predict.iloc[i]
 
     ACE /= n
+    
     return ACE
 
 
@@ -66,18 +69,20 @@ def compute_confidence_intervals(Y, A, Z, data, num_bootstraps=200, alpha=0.05):
     Ql = alpha/2
     Qu = 1 - alpha/2
     estimates = []
+    n = data.shape[0]
 
+    # Generate datasets by resampling with replacement and calculate estimates
     for i in range(num_bootstraps):
+        estimate = backdoor_adjustment(Y, A, Z, data.sample(n = n, replace=True))
+        estimates.append(estimate)
 
-        # Implement your code here:
-        val = backdoor_adjustment(Y, A, Z, data.sample(n = data.shape[0], replace=True))
-        # print(val)
-        estimates.append(val)
-
+    # Construct a Series
     series = pd.Series(estimates)
-    q_low, q_up = series.quantile(Ql), series.quantile(Qu)
-    return q_low, q_up
 
+    # Get values at the Q1 and Qu quantiles
+    q_low, q_up = series.quantile(Ql), series.quantile(Qu)
+
+    return q_low, q_up
 
 def main():
     """
@@ -102,14 +107,8 @@ def main():
     # point estimate and CIs using observational data and linear regression
     print("ACE with adjustment in observational data", backdoor_adjustment(Y, A, Z, nsw_observational), compute_confidence_intervals(Y, A, Z, nsw_observational))
 
-    Z.append("black*nodegree")
-    Z.append("black*treat")
-    Z.append("black*educ")
-    Z.append("hisp*nodegree")
-    Z.append("hisp*treat")
-    Z.append("hisp*educ")
-    Z.append("treat*nodegree")
-    Z.append("treat*educ")
+    interaction_terms = ["black*nodegree", "black*treat", "black*educ", "hisp*nodegree", "hisp*treat", "hisp*educ", "treat*nodegree", "treat*educ"]
+    Z += interaction_terms
     # point estimate and CIs using observational data and nonlinear regression
     print("ACE with adjustment in a non-linear regression", backdoor_adjustment(Y, A, Z, nsw_observational), compute_confidence_intervals(Y, A, Z, nsw_observational))
 
