@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import pandas as pd
 import numpy as np
