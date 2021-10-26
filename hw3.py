@@ -22,8 +22,31 @@ def ipw(Y, A, Z, data, trim=False):
     ACE: float corresponding to the causal effect
     """
 
-    # code for IPW
-    return 0
+    formula = A + '~'
+
+    for i in range(len(Z)):
+        formula += ' + '
+        formula += Z[i]
+
+    model = sm.GLM.from_formula(formula, data=data, family=sm.families.Binomial()).fit()
+    X = pd.DataFrame(data.drop([A], axis=1))
+    y = model.predict(X)
+    # print(y)
+    # print(propensity.head())
+    # print(model.predict(data))
+
+    n = data.shape[0]
+    ACE = 0.0
+    
+    for i in range(n):
+        first = (data.iloc[i][A] * data.iloc[i][Y]) / y.iloc[i]
+        second = ((1 - data.iloc[i][A]) * data.iloc[i][Y]) / (1 - y.iloc[i])
+        ACE += (first - second)
+    
+    ACE /= n
+    print(ACE)
+    
+    return ACE
 
 def augmented_ipw(Y, A, Z, data, trim=False):
     """
@@ -71,6 +94,7 @@ def main():
 
     # point estimate and CIs using observational data and IPW
     print("ACE using IPW", 0, (-1, 1))
+    ipw("re78", "treat", Z, nsw_observational)
 
     # point estimate and CIs using observational data and IPW with trimming=
     print("ACE using IPW with trimming", 0, (-1, 1))
