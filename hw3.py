@@ -55,7 +55,7 @@ def ipw(Y, A, Z, data, trim):
     
     return ACE
 
-def augmented_ipw(Y, A, Z, data, trim):
+def augmented_ipw(Y, A, Z, data, trim=False):
     """
     Compute the average causal effect E[Y(A=1)] - E[Y(A=0)] via AIPW
 
@@ -98,6 +98,7 @@ def augmented_ipw(Y, A, Z, data, trim):
         data = data.query('ps >= 0.1 and ps <= 0.9')
     
     n = data.shape[0]
+    # print(n)
 
     for i in range(n):
         f_ipw = (data.iloc[i][A] * data.iloc[i][Y]) / data.iloc[i]["ps"]
@@ -113,9 +114,10 @@ def augmented_ipw(Y, A, Z, data, trim):
         ACE += val
 
     ACE /= n
+
     return ACE
 
-def compute_confidence_intervals(Y, A, Z, data, method_name, num_bootstraps=200, alpha=0.05):
+def compute_confidence_intervals(Y, A, Z, data, method_name, trim, num_bootstraps=200, alpha=0.05):
     """
     Compute confidence intervals for IPW or AIPW (potentially with trimming) via bootstrap.
     The input method_name can be used to decide how to compute the confidence intervals.
@@ -124,8 +126,20 @@ def compute_confidence_intervals(Y, A, Z, data, method_name, num_bootstraps=200,
     """
 
     # code for bootstrap
+    Ql = alpha/2
+    Qu = 1 - alpha/2
+    estimates = []
+    n = data.shape[0]
 
-    return -1, 1
+    for i in range(num_bootstraps):
+        estimate = method_name(Y, A, Z, data.sample(n = n, replace=True), trim)
+        # print(estimate)
+        estimates.append(estimate)
+
+    series = pd.Series(estimates)
+
+    q_low, q_up = series.quantile(Ql), series.quantile(Qu)
+    return q_low, q_up
 
 
 def main():
@@ -136,20 +150,21 @@ def main():
     np.random.seed(100)
 
     nsw_observational = pd.read_csv("nsw_observational.txt")
+    Y = "re78"
+    A = "treat"
     # define some backdoor sets
     Z = ["age", "educ", "black", "hisp", "marr", "nodegree", "re74", "re75"]
 
     # point estimate and CIs using observational data and IPW
-    print("ACE using IPW", 0, (-1, 1))
-    print(ipw("re78", "treat", Z, nsw_observational, False))
+    print("ACE using IPW", ipw(Y, A, Z, nsw_observational, False), compute_confidence_intervals(Y, A, Z, nsw_observational, ipw, False))
+    # print(ipw("re78", "treat", Z, nsw_observational, False))
+    # print(compute_confidence_intervals("re78", "treat", Z, nsw_observational, ipw))
 
-    # point estimate and CIs using observational data and IPW with trimming=
-    print("ACE using IPW with trimming", 0, (-1, 1))
-    print(ipw("re78", "treat", Z, nsw_observational, True))
+    # point estimate and CIs using observational data and IPW with trimming
+    print("ACE using IPW with trimming", ipw(Y, A, Z, nsw_observational, True), compute_confidence_intervals(Y, A, Z, nsw_observational, ipw, True))
 
     # point estimate and CIs using observational data and AIPW
-    print("ACE using AIPW (potentially with trimming)", (0, -1, 1))
-    print(augmented_ipw("re78", "treat", Z, nsw_observational, True))
+    print("ACE using AIPW (potentially with trimming)", augmented_ipw(Y, A, Z, nsw_observational, True), compute_confidence_intervals(Y, A, Z, nsw_observational, augmented_ipw, True))
 
 
 if __name__ == "__main__":
