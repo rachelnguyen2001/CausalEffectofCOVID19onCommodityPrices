@@ -23,39 +23,28 @@ def ipw(Y, A, Z, data, trim):
     ACE: float corresponding to the causal effect
     """
 
+    # Formula for the model
     formula = A + '~'
 
+    # Adding variables to the formula
     for i in range(len(Z)):
         formula += ' + '
         formula += Z[i]
 
+    # The model
     model = sm.GLM.from_formula(formula, data=data, family=sm.families.Binomial()).fit()
-    # X = pd.DataFrame(data.drop([A], axis=1))
-    # y = model.predict(X)
-    data["ps"] = model.predict(data)
-    # print(data["ps"])
-    # print(y)
-    # print(propensity.head())
-    # print(model.predict(data))
+    # Propensity scores
+    data["propensity_score"] = model.predict(data)
 
+    # Trimming the data
     if trim:
-        data = data.query('ps >= 0.1 and ps <= 0.9')
-        # print(data)
+        data = data.query('propensity_score >= 0.1 and propensity_score <= 0.9')
 
-    n = data.shape[0]
-    ACE = 0.0
-    
-    for i in range(n):
-        first = (data.iloc[i][A] * data.iloc[i][Y]) / data.iloc[i]["ps"]
-        second = ((1 - data.iloc[i][A]) * data.iloc[i][Y]) / (1 - data.iloc[i]["ps"])
-        ACE += (first - second)
-    
-    ACE /= n
-    # print(ACE)
-    
+    ACE = np.mean((data[A] * data[Y]) / data["propensity_score"] - ((1 - data[A]) * data[Y]) / (1 - data["propensity_score"]))
     return ACE
 
-def augmented_ipw(Y, A, Z, data, trim=False):
+
+def augmented_ipw(Y, A, Z, data, trim):
     """
     Compute the average causal effect E[Y(A=1)] - E[Y(A=0)] via AIPW
 
@@ -71,51 +60,48 @@ def augmented_ipw(Y, A, Z, data, trim=False):
     ------
     ACE: float corresponding to the causal effect
     """
-    f_1 = A + '~'
-    f_2 = Y + '~' + A
+    # Formula for the propensity score model
+    propensity_formula = A + '~'
+    # Formula for the outcome regression model
+    regression_formula = Y + '~' + A
 
+    # Adding variables to the formulas
     for i in range(len(Z)):
-        f_1 += ' + '
-        f_2 += ' + '
-        f_1 += Z[i]
-        f_2 += Z[i]
+        propensity_formula += ' + '
+        regression_formula += ' + '
+        propensity_formula += Z[i]
+        regression_formula += Z[i]
 
-    model_1 = sm.GLM.from_formula(f_1, data=data, family=sm.families.Binomial()).fit()
-    model_2 = smf.ols(formula=f_2, data=data).fit()
+    # The propensity score model
+    propensity_model = sm.GLM.from_formula(propensity_formula, data=data, family=sm.families.Binomial()).fit()
+    # The outcome regression model
+    regression_model = smf.ols(formula=regression_formula, data=data).fit()
+
+    # Create two copies of the data
     D_a = data.copy(deep=True)
     D_a_prime = data.copy(deep=True)
-    D_a[A].replace({0: 1}, inplace=True)
-    D_a_prime[A].replace({1:0}, inplace=True)
-    data["D_a_predict"] = model_2.predict(D_a)
-    data["D_a_prime_predict"] = model_2.predict(D_a_prime)
-    # X = pd.DataFrame(data.drop([A], axis=1))
-    data["ps"] = model_1.predict(data)
-    data["Y | A, Z"] = model_2.predict(data)
-    
-    ACE = 0.0
 
+    # Set A = 1 for all data points in D_a and A = 0 for all data points in D_a_prime
+    D_a[A] = 1
+    D_a_prime[A] = 0
+    
+    # Predicted values based on the models
+    data["D_a_predict"] = regression_model.predict(D_a)
+    data["D_a_prime_predict"] = regression_model.predict(D_a_prime)
+    data["propensity_score"] = propensity_model.predict(data)
+    data["Y_predict"] = regression_model.predict(data)
+    
+    # Trimming the data
     if trim:
-        data = data.query('ps >= 0.1 and ps <= 0.9')
-    
-    n = data.shape[0]
-    # print(n)
+        data = data.query('propensity_score >= 0.1 and propensity_score <= 0.9')
 
-    for i in range(n):
-        f_ipw = (data.iloc[i][A] * data.iloc[i][Y]) / data.iloc[i]["ps"]
-        s_ipw = ((1 - data.iloc[i][A]) * data.iloc[i][Y]) / (1 - data.iloc[i]["ps"])
-        ipw = f_ipw - s_ipw
-        f_bd = data.iloc[i]["D_a_predict"]
-        s_bd = data.iloc[i]["D_a_prime_predict"]
-        bd = f_bd - s_bd
-        f_ag = (data.iloc[i][A] * data.iloc[i]["Y | A, Z"]) / data.iloc[i]["ps"]
-        s_ag = ((1 - data.iloc[i][A]) * data.iloc[i]["Y | A, Z"]) / (1 - data.iloc[i]["ps"])
-        ag = f_ag - s_ag
-        val = ipw + bd - ag
-        ACE += val
-
-    ACE /= n
-
+    # Calculating the AIPW
+    ipw = ((data[A] * data[Y]) / data["propensity_score"]) - (((1 - data[A]) * data[Y]) / (1 - data["propensity_score"]))
+    backdoor = data["D_a_predict"] - data["D_a_prime_predict"]
+    augmented = ((data[A] * data["Y_predict"]) / data["propensity_score"]) - (((1 - data[A]) * data["Y_predict"]) / (1 - data["propensity_score"]))
+    ACE = np.mean(ipw + backdoor - augmented)
     return ACE
+
 
 def compute_confidence_intervals(Y, A, Z, data, method_name, trim, num_bootstraps=200, alpha=0.05):
     """
@@ -125,19 +111,20 @@ def compute_confidence_intervals(Y, A, Z, data, method_name, trim, num_bootstrap
     Returns tuple (q_low, q_up) for the lower and upper quantiles of the confidence interval.
     """
 
-    # code for bootstrap
     Ql = alpha/2
     Qu = 1 - alpha/2
     estimates = []
     n = data.shape[0]
 
+    # Generate datasets by resampling with replacement and calculate estimates
     for i in range(num_bootstraps):
         estimate = method_name(Y, A, Z, data.sample(n = n, replace=True), trim)
-        # print(estimate)
         estimates.append(estimate)
 
+    # Construct a Series
     series = pd.Series(estimates)
 
+    # Get values at the Ql and Qu quantiles
     q_low, q_up = series.quantile(Ql), series.quantile(Qu)
     return q_low, q_up
 
@@ -157,15 +144,13 @@ def main():
 
     # point estimate and CIs using observational data and IPW
     print("ACE using IPW", ipw(Y, A, Z, nsw_observational, False), compute_confidence_intervals(Y, A, Z, nsw_observational, ipw, False))
-    # print(ipw("re78", "treat", Z, nsw_observational, False))
-    # print(compute_confidence_intervals("re78", "treat", Z, nsw_observational, ipw))
 
     # point estimate and CIs using observational data and IPW with trimming
     print("ACE using IPW with trimming", ipw(Y, A, Z, nsw_observational, True), compute_confidence_intervals(Y, A, Z, nsw_observational, ipw, True))
 
     # point estimate and CIs using observational data and AIPW
-    print("ACE using AIPW (potentially with trimming)", augmented_ipw(Y, A, Z, nsw_observational, True), compute_confidence_intervals(Y, A, Z, nsw_observational, augmented_ipw, True))
-
-
+    print("ACE using AIPW with trimming", augmented_ipw(Y, A, Z, nsw_observational, True), compute_confidence_intervals(Y, A, Z, nsw_observational, augmented_ipw, True))
+    print("ACE using AIPW without trimming", augmented_ipw(Y, A, Z, nsw_observational, False), compute_confidence_intervals(Y, A, Z, nsw_observational, augmented_ipw, False))
+    
 if __name__ == "__main__":
     main()
