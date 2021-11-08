@@ -80,11 +80,40 @@ class Graph():
         gviz_file.write("}\n")
         gviz_file.close()
 
+def depth_first_search(G, v, visited, current_path):
+    if v in visited:
+        return True
+
+    visited.add(v)
+    current_path.add(v)
+    children = set()
+    edges = G.edges()
+    
+    for u in G.vertices:
+        if (v, u) in edges:
+            children.add(u)
+
+    for c in children:
+        if c not in visited and depth_first_search(G, c, visited, current_path):
+            return True
+        elif c in current_path:
+            return True
+
+    current_path.remove(v)
+    return False
+
 def acyclic(G):
     """
     A function that uses depth first traversal to determine whether the
     graph G is acyclic.
     """
+    visited = set()
+    current_path = set()
+
+    for v in G.vertices:
+        if v not in visited:
+            if depth_first_search(G, v, visited, current_path):
+                return False
 
     return True
 
@@ -152,20 +181,24 @@ data = pd.read_csv("bic_test_data.txt")
 
 # fit model for G1: A->B->C->D, B->D and get BIC
 G1 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("B", "C"), ("C", "D"), ("B", "D")])
-print(bic_score(G1, data), acyclic(G1))
-G1.produce_visualization_code("G1_viz.txt")
+print(acyclic(G1))
+# print(bic_score(G1, data), acyclic(G1))
+# G1.produce_visualization_code("G1_viz.txt")
 
 # fit model for G2: A<-B->C->D, B->D and get BIC
 G2 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("C", "D"), ("B", "D")])
-print(bic_score(G2, data), acyclic(G2))
+print(acyclic(G2))
+# print(bic_score(G2, data), acyclic(G2))
 
 # fit model for G3: A->B<-C->D, B->D and get BIC
 G3 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("C", "B"), ("C", "D"), ("B", "D")])
-print(bic_score(G3, data), acyclic(G3))
+print(acyclic(G3))
+# print(bic_score(G3, data), acyclic(G3))
 
 # fit model for G4: A<-B->C<-D, B->D and get BIC
 G4 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("D", "C"), ("B", "D")])
-print(bic_score(G4, data), acyclic(G4))
+print(acyclic(G4))
+# print(bic_score(G4, data), acyclic(G4))
 
 
 
@@ -177,4 +210,4 @@ random.seed(100)
 data = pd.read_csv("data.txt")
 G_opt = causal_discovery(data)
 # you can paste the code in protein_viz.txt into the online interface of Graphviz
-G_opt.produce_visualization_code("protein_viz.txt")
+# G_opt.produce_visualization_code("protein_viz.txt")

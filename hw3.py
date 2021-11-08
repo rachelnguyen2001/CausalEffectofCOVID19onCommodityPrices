@@ -35,6 +35,8 @@ def ipw(Y, A, Z, data, trim):
     model = sm.GLM.from_formula(formula, data=data, family=sm.families.Binomial()).fit()
     # Propensity scores
     data["propensity_score"] = model.predict(data)
+    treated = data.query('treat == 0')
+    print(treated.shape[0])
 
     # Trimming the data
     if trim:
