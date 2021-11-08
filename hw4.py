@@ -81,9 +81,6 @@ class Graph():
         gviz_file.close()
 
 def depth_first_search(G, v, visited, current_path):
-    if v in visited:
-        return True
-
     visited.add(v)
     current_path.add(v)
     children = set()
@@ -91,14 +88,15 @@ def depth_first_search(G, v, visited, current_path):
     
     for u in G.vertices:
         if (v, u) in edges:
-            children.add(u)
+            if u in current_path:
+                return True
+            if u not in visited:
+                children.add(u)
 
     for c in children:
-        if c not in visited and depth_first_search(G, c, visited, current_path):
+        if depth_first_search(G, c, visited, current_path):
             return True
-        elif c in current_path:
-            return True
-
+            
     current_path.remove(v)
     return False
 
@@ -111,8 +109,7 @@ def acyclic(G):
     current_path = set()
 
     for v in G.vertices:
-        if v not in visited:
-            if depth_first_search(G, v, visited, current_path):
+            if v not in visited and depth_first_search(G, v, visited, current_path):
                 return False
 
     return True
@@ -173,6 +170,10 @@ print(acyclic(G1))
 print(acyclic(G2))
 print(acyclic(G3))
 
+# print(acyclic(G1) == True)
+# print(acyclic(G2) == False)
+# print(acyclic(G3) == False)
+
 
 ################################################
 # Tests for your bic_score function
@@ -205,9 +206,9 @@ print(acyclic(G4))
 ################################################
 # Tests for your causal_discovery function
 ################################################
-np.random.seed(1000)
-random.seed(100)
-data = pd.read_csv("data.txt")
-G_opt = causal_discovery(data)
+# np.random.seed(1000)
+# random.seed(100)
+# data = pd.read_csv("data.txt")
+# G_opt = causal_discovery(data)
 # you can paste the code in protein_viz.txt into the online interface of Graphviz
 # G_opt.produce_visualization_code("protein_viz.txt")
