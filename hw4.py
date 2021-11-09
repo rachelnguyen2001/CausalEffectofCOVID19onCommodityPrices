@@ -114,6 +114,31 @@ def acyclic(G):
 
     return True
 
+def bic_score_helper(G, data, v):
+    formula = v + ' ~ 1'
+    parents = G.parents[v]
+
+    for p in parents:
+        formula += ' + '
+        formula += p
+
+    model = ols(formula=formula, data=data).fit()
+    loglikelihood = model.llf
+    bic = -2*loglikelihood + len(model.params) * data.shape[0]
+    return bic
+
+def is_pair_valid(G, edges, V):
+    if (V[0], V[1]) in edges:
+        return False
+    else:
+        G.add_edge(V[0], V[1])
+
+        if acyclic(G):
+            return True
+        else:
+            G.delete_edge(V[0], V[1])
+            return False
+
 def bic_score(G, data):
     """
     Compute the BIC score for a given graph G and a dataset as a pandas data frame.
@@ -122,8 +147,12 @@ def bic_score(G, data):
     G: a Graph object as defined by the Graph class above
     data: a pandas data frame
     """
+    bic = 0.0
 
-    return 1
+    for v in G.vertices:
+        bic += bic_score_helper(G, data, v)
+
+    return bic
 
 def causal_discovery(data, num_steps=50):
     """
@@ -134,20 +163,44 @@ def causal_discovery(data, num_steps=50):
     # initalize an empty graph as the optimal one and gets its BIC score
     G_star = Graph(vertices=data.columns)
     bic_star = bic_score(G_star, data)
-
+    vertices = list(G_star.vertices)
+    
     # forward phase of causal discovery:
     for i in range(num_steps):
-
+        edges = G_star.edges()
+        V = random.choices(vertices, k=2)
         # attempt a random edge addition that does not create a cycle
         # if it improves the BIC score, update G_star and bic_star
-        pass
+        
+        while not is_pair_valid(G_star, edges, V):
+            V = random.choices(vertices, k=2)
+
+        bic_add = bic_score(G_star, data)
+
+        if bic_add < bic_star:
+            bic_star = bic_add
+        else:
+            G_star.delete_edge(V[0], V[1])
+        
 
     # backward phase of causal discovery
+    edges = list(G_star.edges())
     for i in range(num_steps):
 
         # attempt a random edge deletion/reversal
         # pick the move that improves the BIC score (if any)
-        pass
+        (v_i, v_j) = random.choice(edges)
+        G_star.delete_edge(v_i, v_j)
+        bic_del = bic_score(G_star, data)
+        G_star.add_edge(v_j, v_i)
+        bic_rev = bic_score(G_star, data)
+
+        if bic_del < bic_rev and bic_del < bic_star:
+            bic_star = bic_del
+            G_star.delete_edge(v_j, v_i)
+        elif bic_star < bic_rev:
+            G_star.delete_edge(v_j, v_i)
+            G_star.add_edge(v_j, v_i)
 
     return G_star
 
@@ -166,9 +219,9 @@ G2 = Graph(vertices=["X", "Y", "Z"], edges=[("X", "Y"), ("Y", "Z"), ("Z", "X")])
 # X->Y->Z, Y->Y
 G3 = Graph(vertices=["X", "Y", "Z"], edges=[("X", "Y"), ("Y", "Z"), ("Y", "Y")])
 
-print(acyclic(G1))
-print(acyclic(G2))
-print(acyclic(G3))
+# print(acyclic(G1))
+# print(acyclic(G2))
+# print(acyclic(G3))
 
 # print(acyclic(G1) == True)
 # print(acyclic(G2) == False)
@@ -182,23 +235,27 @@ data = pd.read_csv("bic_test_data.txt")
 
 # fit model for G1: A->B->C->D, B->D and get BIC
 G1 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("B", "C"), ("C", "D"), ("B", "D")])
-print(acyclic(G1))
+# print(bic_score(G1, data))
+# print(acyclic(G1))
 # print(bic_score(G1, data), acyclic(G1))
 # G1.produce_visualization_code("G1_viz.txt")
 
 # fit model for G2: A<-B->C->D, B->D and get BIC
 G2 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("C", "D"), ("B", "D")])
-print(acyclic(G2))
+# print(acyclic(G2))
+# print(bic_score(G2, data))
 # print(bic_score(G2, data), acyclic(G2))
 
 # fit model for G3: A->B<-C->D, B->D and get BIC
 G3 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("C", "B"), ("C", "D"), ("B", "D")])
-print(acyclic(G3))
+# print(acyclic(G3))
+# print(bic_score(G3, data))
 # print(bic_score(G3, data), acyclic(G3))
 
 # fit model for G4: A<-B->C<-D, B->D and get BIC
 G4 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("D", "C"), ("B", "D")])
-print(acyclic(G4))
+# print(acyclic(G4))
+# print(bic_score(G4, data))
 # print(bic_score(G4, data), acyclic(G4))
 
 
@@ -208,7 +265,7 @@ print(acyclic(G4))
 ################################################
 # np.random.seed(1000)
 # random.seed(100)
-# data = pd.read_csv("data.txt")
-# G_opt = causal_discovery(data)
+data = pd.read_csv("data.txt")
+G_opt = causal_discovery(data)
 # you can paste the code in protein_viz.txt into the online interface of Graphviz
-# G_opt.produce_visualization_code("protein_viz.txt")
+G_opt.produce_visualization_code("protein_viz.txt")
