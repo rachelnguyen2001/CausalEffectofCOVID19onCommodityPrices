@@ -1,0 +1,10 @@
+Digraph G { 
+  D [shape="plaintext"];
+  A [shape="plaintext"];
+  C [shape="plaintext"];
+  B [shape="plaintext"];
+  C -> D [color="blue"];
+  B -> D [color="blue"];
+  B -> C [color="blue"];
+  A -> B [color="blue"];
+}

@@ -1,0 +1,14 @@
+Digraph G { 
+  PKC [shape="plaintext"];
+  P38 [shape="plaintext"];
+  PLCγ [shape="plaintext"];
+  Mek [shape="plaintext"];
+  PIP3 [shape="plaintext"];
+  Raf [shape="plaintext"];
+  Erk [shape="plaintext"];
+  Akt [shape="plaintext"];
+  PKA [shape="plaintext"];
+  Jnk [shape="plaintext"];
+  PIP2 [shape="plaintext"];
+  P38 -> PKC [color="blue"];
+}
