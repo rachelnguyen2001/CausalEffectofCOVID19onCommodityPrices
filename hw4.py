@@ -184,9 +184,8 @@ def causal_discovery(data, num_steps=50):
         
 
     # backward phase of causal discovery
-    edges = list(G_star.edges())
     for i in range(num_steps):
-
+        edges = G_star.edges()
         # attempt a random edge deletion/reversal
         # pick the move that improves the BIC score (if any)
         (v_i, v_j) = random.choice(edges)
