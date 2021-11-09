@@ -200,6 +200,8 @@ def causal_discovery(data, num_steps=50):
         elif bic_star < bic_rev:
             G_star.delete_edge(v_j, v_i)
             G_star.add_edge(v_i, v_j)
+        else:
+            bic_start = bic_rev
 
     return G_star
 
