@@ -167,7 +167,6 @@ def causal_discovery(data, num_steps=50):
     
     # forward phase of causal discovery:
     for i in range(num_steps):
-        print("i: ", i)
         edges = G_star.edges()
         V = random.choices(vertices, k=2)
         # attempt a random edge addition that does not create a cycle
@@ -176,12 +175,7 @@ def causal_discovery(data, num_steps=50):
         while not is_pair_valid(G_star, edges, V):
             V = random.choices(vertices, k=2)
 
-        print("V[0]: ", V[0])
-        print("V[1]: ", V[1])
-        print(G_star.edges())
         bic_add = bic_score(G_star, data)
-        print("bic_add: ", bic_add)
-        print("bic_star: ", bic_star)
         
         if bic_add < bic_star:
             bic_star = bic_add
@@ -241,7 +235,7 @@ data = pd.read_csv("bic_test_data.txt")
 
 # fit model for G1: A->B->C->D, B->D and get BIC
 G1 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("B", "C"), ("C", "D"), ("B", "D")])
-print(bic_score(G1, data))
+# print(bic_score(G1, data))
 # print(acyclic(G1))
 # print(bic_score(G1, data), acyclic(G1))
 # G1.produce_visualization_code("G1_viz.txt")
@@ -249,19 +243,19 @@ print(bic_score(G1, data))
 # fit model for G2: A<-B->C->D, B->D and get BIC
 G2 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("C", "D"), ("B", "D")])
 # print(acyclic(G2))
-print(bic_score(G2, data))
+# print(bic_score(G2, data))
 # print(bic_score(G2, data), acyclic(G2))
 
 # fit model for G3: A->B<-C->D, B->D and get BIC
 G3 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("C", "B"), ("C", "D"), ("B", "D")])
 # print(acyclic(G3))
-print(bic_score(G3, data))
+# print(bic_score(G3, data))
 # print(bic_score(G3, data), acyclic(G3))
 
 # fit model for G4: A<-B->C<-D, B->D and get BIC
 G4 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("D", "C"), ("B", "D")])
 # print(acyclic(G4))
-print(bic_score(G4, data))
+# print(bic_score(G4, data))
 # print(bic_score(G4, data), acyclic(G4))
 
 
