@@ -265,7 +265,7 @@ print(bic_score(G4, data), acyclic(G4))
 # Tests for your causal_discovery function
 ################################################
 np.random.seed(1000)
-random.seed(100)
+# random.seed(100)
 data = pd.read_csv("data.txt")
 G_opt = causal_discovery(data)
 # you can paste the code in protein_viz.txt into the online interface of Graphviz
