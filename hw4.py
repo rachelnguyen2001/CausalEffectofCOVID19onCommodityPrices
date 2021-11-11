@@ -192,8 +192,13 @@ def causal_discovery(data, num_steps=50):
         G_star.delete_edge(v_i, v_j)
         bic_del = bic_score(G_star, data)
         G_star.add_edge(v_j, v_i)
-        bic_rev = bic_score(G_star, data)
 
+        if acyclic(G_star):
+            bic_rev = bic_score(G_star, data)
+        else:
+            bic_rev = bic_star + 1
+            
+        # check for acyclicdity
         if bic_del < bic_rev and bic_del < bic_star:
             bic_star = bic_del
             G_star.delete_edge(v_j, v_i)
@@ -201,7 +206,7 @@ def causal_discovery(data, num_steps=50):
             G_star.delete_edge(v_j, v_i)
             G_star.add_edge(v_i, v_j)
         else:
-            bic_start = bic_rev
+            bic_star = bic_rev
 
     return G_star
 
