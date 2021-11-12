@@ -178,7 +178,12 @@ def bic_score(G, data):
     return bic
 
 def is_pair_valid(G, edges, V):
+    """                                                                         
+    Check if an edge is valid (i.e. does not exist in G and adding it to G does not make G cyclic)                                                 
+    """
+    
     if (V[0], V[1]) in edges:
+        # The edge is already in G
         return False
     else:
         G.add_edge(V[0], V[1])
@@ -186,6 +191,7 @@ def is_pair_valid(G, edges, V):
         if acyclic(G):
             return True
         else:
+            # Adding the edge to G make it cyclic
             G.delete_edge(V[0], V[1])
             return False
         
@@ -206,51 +212,56 @@ def causal_discovery(data, num_steps=50):
     for i in range(num_steps):
         edges = G_star.edges()
 
-        # Pick two random vertices in the set of all vertices
+        # Pick two random vertices in the set of all vertices until we find a valid pair
         V = random.choices(vertices, k=2)
-        
-        # attempt a random edge addition that does not create a cycle
-        # if it improves the BIC score, update G_star and bic_star
         
         while not is_pair_valid(G_star, edges, V):
             V = random.choices(vertices, k=2)
 
+        # The BIC score after adding the new edge
         bic_add = bic_score(G_star, data)
-        
+
+        # Only keeping the added edge if it improves the BIC score
         if bic_add < bic_star:
             bic_star = bic_add
         else:
             G_star.delete_edge(V[0], V[1])
-        
 
     # backward phase of causal discovery
     for i in range(num_steps):
         edges = G_star.edges()
-        # attempt a random edge deletion/reversal
-        # pick the move that improves the BIC score (if any)
+
+        # Pick a random edge that exists in G_star
         (v_i, v_j) = random.choice(edges)
+
+        # Attempt edge deletion
         G_star.delete_edge(v_i, v_j)
         bic_del = bic_score(G_star, data)
+
+        # Attempt edge reversal
         G_star.add_edge(v_j, v_i)
 
         if acyclic(G_star):
             bic_rev = bic_score(G_star, data)
         else:
+            # If reversing an edge makes the graph cyclic, make the BIC score for the edge reversal attempt big
+            # so that it cannot be chosen
             bic_rev = bic_star + 1
-            
-        # check for acyclicdity
+
+        
         if bic_del < bic_rev and bic_del < bic_star:
+            # When the BIC score for edge deletion is the best, delete the edge and update bic_star
             bic_star = bic_del
             G_star.delete_edge(v_j, v_i)
         elif bic_star < bic_rev:
+            # When deleting and reversing an edge do not improve the BIC score, keep the bic_star and G_star unchanged
             G_star.delete_edge(v_j, v_i)
             G_star.add_edge(v_i, v_j)
         else:
+            # When the BIC score for edge reversal is the best, reverse the edge and update bic_star
             bic_star = bic_rev
 
     return G_star
-
-
 
 ################################################
 # Tests for your acyclic function
@@ -296,8 +307,8 @@ print(bic_score(G4, data), acyclic(G4))
 # Tests for your causal_discovery function
 ################################################
 np.random.seed(1000)
-# random.seed(100)
+random.seed(100)
 data = pd.read_csv("data.txt")
 G_opt = causal_discovery(data)
 # you can paste the code in protein_viz.txt into the online interface of Graphviz
-# G_opt.produce_visualization_code("protein_viz.txt")
+G_opt.produce_visualization_code("protein_viz.txt")
