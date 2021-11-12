@@ -81,23 +81,39 @@ class Graph():
         gviz_file.close()
 
 def depth_first_search(G, v, visited, current_path):
+    """                                                                                                             
+    A function that uses depth first traversal to determine whether a vertex v
+    is part of a cycle in the graph G.
+    """
+    # Add v to the set of visited vertices and the set of vertices in the current path
     visited.add(v)
     current_path.add(v)
+
+    # Children of v
     children = set()
+
+    # Edges in G
     edges = G.edges()
     
     for u in G.vertices:
+
         if (v, u) in edges:
+            
             if u in current_path:
+                # A back edge which indicates a cycle
                 return True
             if u not in visited:
+                # Only visit unvisited vertices
                 children.add(u)
 
+    # Continue depth first traversal to the next level
     for c in children:
         if depth_first_search(G, c, visited, current_path):
             return True
-            
+
+    # Remove v from current_path when we return from our depth first traversal
     current_path.remove(v)
+    
     return False
 
 def acyclic(G):
@@ -105,27 +121,45 @@ def acyclic(G):
     A function that uses depth first traversal to determine whether the
     graph G is acyclic.
     """
+    # Set of visited vertices
     visited = set()
+
+    # Set of vertices in the current path
     current_path = set()
 
     for v in G.vertices:
-            if v not in visited and depth_first_search(G, v, visited, current_path):
-                return False
+        
+        # Determine whether an unvisited vertex is part of a cycle in G
+        if v not in visited and depth_first_search(G, v, visited, current_path):
+            return False
 
     return True
 
 def bic_score_helper(G, data, v):
-    formula = v + ' ~ 1'
-    parents = G.parents[v]
+     """                                                                                                            
+     Compute the BIC score for a model fit for a variable v in a graph G given its parents
+     and a dataset as a pandas data frame.                                  
+                                                                                                                    
+     Inputs:                                                                                                          
+     G: a Graph object as defined by the Graph class above
+     v: the variable we want to fit a model for
+     data: a pandas data frame                                                                                        
+    """
+     # Formula for the model
+     formula = v + ' ~ 1'
 
-    for p in parents:
-        formula += ' + '
-        formula += p
+     # Parents of v
+     parents = G.parents[v]
 
-    model = ols(formula=formula, data=data).fit()
-    loglikelihood = model.llf
-    bic = -2*loglikelihood + len(model.params) * np.log(data.shape[0])
-    return bic
+     for p in parents:
+         formula += ' + '
+         formula += p
+
+     model = ols(formula=formula, data=data).fit()
+     loglikelihood = model.llf
+     bic = -2*loglikelihood + len(model.params) * np.log(data.shape[0])
+    
+     return bic
 
 def is_pair_valid(G, edges, V):
     if (V[0], V[1]) in edges:
@@ -149,6 +183,7 @@ def bic_score(G, data):
     """
     bic = 0.0
 
+    # Sum over the BIC scores for individual models fit for each variable given its parents
     for v in G.vertices:
         bic += bic_score_helper(G, data, v)
 
@@ -163,12 +198,17 @@ def causal_discovery(data, num_steps=50):
     # initalize an empty graph as the optimal one and gets its BIC score
     G_star = Graph(vertices=data.columns)
     bic_star = bic_score(G_star, data)
+
+    # Get a list of all the vertices in G
     vertices = list(G_star.vertices)
     
     # forward phase of causal discovery:
     for i in range(num_steps):
         edges = G_star.edges()
+
+        # Pick two random vertices in the set of all vertices
         V = random.choices(vertices, k=2)
+        
         # attempt a random edge addition that does not create a cycle
         # if it improves the BIC score, update G_star and bic_star
         
@@ -229,11 +269,6 @@ print(acyclic(G1))
 print(acyclic(G2))
 print(acyclic(G3))
 
-# print(acyclic(G1) == True)
-# print(acyclic(G2) == False)
-# print(acyclic(G3) == False)
-
-
 ################################################
 # Tests for your bic_score function
 ################################################
@@ -241,27 +276,18 @@ data = pd.read_csv("bic_test_data.txt")
 
 # fit model for G1: A->B->C->D, B->D and get BIC
 G1 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("B", "C"), ("C", "D"), ("B", "D")])
-# print(bic_score(G1, data))
-# print(acyclic(G1))
 print(bic_score(G1, data), acyclic(G1))
-# G1.produce_visualization_code("G1_viz.txt")
 
 # fit model for G2: A<-B->C->D, B->D and get BIC
 G2 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("C", "D"), ("B", "D")])
-# print(acyclic(G2))
-# print(bic_score(G2, data))
 print(bic_score(G2, data), acyclic(G2))
 
 # fit model for G3: A->B<-C->D, B->D and get BIC
 G3 = Graph(vertices=["A", "B", "C", "D"], edges=[("A", "B"), ("C", "B"), ("C", "D"), ("B", "D")])
-# print(acyclic(G3))
-# print(bic_score(G3, data))
 print(bic_score(G3, data), acyclic(G3))
 
 # fit model for G4: A<-B->C<-D, B->D and get BIC
 G4 = Graph(vertices=["A", "B", "C", "D"], edges=[("B", "A"), ("B", "C"), ("D", "C"), ("B", "D")])
-# print(acyclic(G4))
-# print(bic_score(G4, data))
 print(bic_score(G4, data), acyclic(G4))
 
 
@@ -274,4 +300,4 @@ np.random.seed(1000)
 data = pd.read_csv("data.txt")
 G_opt = causal_discovery(data)
 # you can paste the code in protein_viz.txt into the online interface of Graphviz
-G_opt.produce_visualization_code("protein_viz.txt")
+# G_opt.produce_visualization_code("protein_viz.txt")
