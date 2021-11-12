@@ -161,18 +161,6 @@ def bic_score_helper(G, data, v):
     
      return bic
 
-def is_pair_valid(G, edges, V):
-    if (V[0], V[1]) in edges:
-        return False
-    else:
-        G.add_edge(V[0], V[1])
-
-        if acyclic(G):
-            return True
-        else:
-            G.delete_edge(V[0], V[1])
-            return False
-
 def bic_score(G, data):
     """
     Compute the BIC score for a given graph G and a dataset as a pandas data frame.
@@ -189,6 +177,18 @@ def bic_score(G, data):
 
     return bic
 
+def is_pair_valid(G, edges, V):
+    if (V[0], V[1]) in edges:
+        return False
+    else:
+        G.add_edge(V[0], V[1])
+
+        if acyclic(G):
+            return True
+        else:
+            G.delete_edge(V[0], V[1])
+            return False
+        
 def causal_discovery(data, num_steps=50):
     """
     Take in data and perform causal discovery according to a set of moves
