@@ -1,10 +1,20 @@
 #!/usr/bin/env python
 
-import statsmodels.formula.api as smf
+import statsmodels.api as sm
 import pandas as pd
 import numpy as np
+from sklearn.ensemble import RandomForestRegressor
+# import matplotlib.pyplot as plt
 
-def backdoor_adjustment(Y, A, Z, data):
+def backdoor_ML(Y, A, Z, data, cases):
+    regressors_y = tuple([A] + Z)
+    X = np.column_stack(regressors_y)
+    model = RandomForestRegressor().fit(X, Y)
+    data_A = X.copy()
+    data_A[:,0] = cases
+    return np.mean(model.predict(data_A))
+
+def backdoor_adjustment(Y, A, Z, data, cases):
     """
     Compute the average causal effect E[Y(A=1)] - E[Y(A=0)] via backdoor adjustment
 
@@ -29,15 +39,15 @@ def backdoor_adjustment(Y, A, Z, data):
         formula += Z[i]
 
     # The model
-    model = smf.ols(formula=formula, data=data).fit()
+    model = sm.GLM.from_formula(formula=formula, data=data, family=sm.families.Gaussian()).fit()
 
     # Create two copies of the data
     D_a = data.copy(deep=True)
-    D_a_prime = data.copy(deep=True)
-
+    # D_a_prime = data.copy(deep=True)
+    D_a[A] = cases
     # Set A = 1 for all data points in D_a and A = 0 for all data points in D_a_prime
-    D_a[A].replace({0: 1}, inplace=True)
-    D_a_prime[A].replace({1:0}, inplace=True)
+    # D_a[A].replace({0: 1}, inplace=True)
+    # D_a_prime[A].replace({1:0}, inplace=True)
     
     ACE = 0.0
 
@@ -46,13 +56,13 @@ def backdoor_adjustment(Y, A, Z, data):
     
     # Prediction for Y in D_a and D_a_prime
     D_a_predict = model.predict(D_a)
-    D_a_prime_predict = model.predict(D_a_prime)
+    # D_a_prime_predict = model.predict(D_a_prime)
 
     # Compute the mean difference in predicted potential outcomes
-    for i in range(n):
-        ACE += (D_a_predict.iloc[i] - D_a_prime_predict.iloc[i])
+    # for i in range(n):
+        # ACE += (D_a_predict.iloc[i] - D_a_prime_predict.iloc[i])
 
-    ACE /= n
+    ACE = np.mean(D_a_predict)
     
     return ACE
 
@@ -89,27 +99,35 @@ def main():
 
     np.random.seed(0)
 
-    nsw_randomized = pd.read_csv("nsw_randomized.txt")
-    nsw_observational = pd.read_csv("nsw_observational.txt")
-    Y = "re78"
-    A = "treat"
-    Z = []
+    data = pd.read_csv("vaccine_estimate.csv")
+    data = data.dropna()
+    # print(data)
+    Y = "crudeoil"
+    A = "cases_three"
+    Z = ["cases"]
+    # print("ACE:", backdoor_adjustment(Y, A, Z, data, 295883))
+    # print("ACE_ML:", backdoor_ML(data[Y], data[A], [data["cases"]], data, 295883))
+    x = []
+    y = []
 
-    # point estimate and CIs from the randomized trial
-    print("ACE from randomized trial", backdoor_adjustment(Y, A, Z, nsw_randomized), compute_confidence_intervals(Y, A, Z, nsw_randomized))
+    for i in range(5700, 305000, 2000):
+        x.append(i)
+        # y.append(backdoor_adjustment(Y, A, Z, data, i))
+        y.append(backdoor_ML(data[Y], data[A], [data["cases"]], data, i))
 
-    # point estimate and CIs from unadjusted observational data
-    print("ACE without adjustment in observational data", backdoor_adjustment(Y, A, Z, nsw_observational), compute_confidence_intervals(Y, A, Z, nsw_observational))
-
-    Z = ["age", "educ", "black", "hisp", "marr", "nodegree", "re74", "re75"]
-    # point estimate and CIs using observational data and linear regression
-    print("ACE with adjustment in observational data", backdoor_adjustment(Y, A, Z, nsw_observational), compute_confidence_intervals(Y, A, Z, nsw_observational))
-
-    interaction_terms = ["black*nodegree", "black*treat", "black*educ", "hisp*nodegree", "hisp*treat", "hisp*educ", "treat*nodegree", "treat*educ"]
-    Z += interaction_terms
-    # point estimate and CIs using observational data and nonlinear regression
-    print("ACE with adjustment in a non-linear regression", backdoor_adjustment(Y, A, Z, nsw_observational), compute_confidence_intervals(Y, A, Z, nsw_observational))
-
+    # print(x)
+    print(y)
+    # plt.plot(x, y)
+    # plt.show()
+    # print("ACE_ML:", backdoor_ML(data[Y], data[A], [data["cases"]], data, 295883))
+    # print(len(data.columns))
+    # print(data.shape[0])
+    # print(data.head())
+    # Y = "crudeoil_five"
+    # A = "cases_three"
+    # Z = ["cases_two"]
+    # print(data[A])
+    # print("ACE:", backdoor_adjustment(Y, A, Z, data))
 
 if __name__ == "__main__":
     main()

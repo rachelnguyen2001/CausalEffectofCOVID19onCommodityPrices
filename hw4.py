@@ -308,7 +308,7 @@ print(bic_score(G4, data), acyclic(G4))
 ################################################
 np.random.seed(1000)
 random.seed(100)
-data = pd.read_csv("data.txt")
+data = pd.read_csv("vaccine_no_null.csv2.txt")
 G_opt = causal_discovery(data)
 # you can paste the code in protein_viz.txt into the online interface of Graphviz
 G_opt.produce_visualization_code("protein_viz.txt")
